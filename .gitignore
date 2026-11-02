@@ -2,3 +2,7 @@
 *.tfstate
 *.tfstate.*
 baseline/evidence/
+# Terraform plan files and local plan exports
+tfplan
+*.tfplan
+/plan.json
