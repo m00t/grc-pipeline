@@ -20,6 +20,7 @@ This Terraform module provisions an AWS S3 storage bucket engineered to meet rig
 * `.github/workflows/grc-gate.yml`: CI policy gate that runs the policies on every pull request to `main`.
 * `verify-evidence.sh`: Verifies a signed evidence bundle's integrity, authenticity and timeliness. Prints `CHAIN INTACT` only if every check passes.
 * `vault/`: Terraform for the S3 Object Lock evidence vault (write-once storage for signed evidence).
+* `baseline/`: Terraform for the account baseline (multi-region CloudTrail with log file validation, AWS Config, Security Hub with NIST 800-53 Rev 5) and `teardown.sh`.
 
 ## Usage
 
@@ -176,3 +177,56 @@ The vault itself is encrypted, blocks public access, and passes the same SC-28, 
 
 The vault is short-lived by design: applied, exercised with one run's evidence, verified, then torn down
 the same day.
+
+## Account Baseline: Native AWS Controls
+
+`baseline/` turns on the native controls that watch the account itself, captures what they report as
+evidence, and is torn down the same day.
+
+| Control | Implementation | Evidence |
+|---|---|---|
+| **AU-2** Event Logging | Multi-region CloudTrail recording management events (no billable data events) | `evidence/cloudtrail-status.json` |
+| **AU-12** Audit Record Generation | One trail covering every region and global service events | `evidence/cloudtrail-status.json` (`IsLogging: true`) |
+| **AU-10** Non-repudiation | `enable_log_file_validation = true`: CloudTrail delivers a signed digest file every hour, so any change to a log file after delivery is detectable | `evidence/cloudtrail-status.json` (digest delivery timestamps) |
+| **RA-5** Vulnerability Monitoring and Scanning | Security Hub with only the NIST SP 800-53 Rev 5 standard subscribed (297 automated controls) | `evidence/security-hub-findings.json` |
+| **SI-4** System Monitoring | Security Hub continuously evaluating the account against the standard | `evidence/security-hub-findings.json`, `evidence/security-hub-standards.json` |
+
+The log bucket is private, encrypted (SSE-S3), blocks public access, denies non-TLS requests, and its
+policy lets CloudTrail write only when `aws:SourceArn` is this trail, and AWS Config only from this account.
+
+### The AWS Config Gap
+
+The first run left AWS Config off. Security Hub reported the gap itself: the NIST standard stayed
+`INCOMPLETE` with reason `NO_AVAILABLE_CONFIGURATION_RECORDER`, and after more than an hour it had
+produced no findings, because most NIST controls evaluate Config data. A missing control surfaced by an
+automated check is valid evidence, but it also meant the scanning control (RA-5) was not actually
+working. The second run added a short-lived Config recorder (`baseline/config.tf`), and findings arrived
+within minutes.
+
+### What the Findings Surfaced
+
+Selected results from `evidence/security-hub-findings.json`:
+
+| Control | Severity | Status | Meaning |
+|---|---|---|---|
+| IAM.6 | CRITICAL | FAILED | Root user has no hardware MFA |
+| GuardDuty.1 | HIGH | FAILED | GuardDuty threat detection not enabled |
+| EC2.2 | HIGH | FAILED | Default VPC security group allows traffic |
+| CloudTrail.1 | INFORMATIONAL | PASSED | Multi-region trail with management events |
+| CloudTrail.2 | MEDIUM | FAILED | Trail logs use SSE-S3; the standard expects KMS |
+| CloudTrail.5 | MEDIUM | FAILED | Trail not integrated with CloudWatch Logs |
+| S3.9 / S3.11 / S3.14 | MEDIUM / LOW | FAILED | Log bucket lacks access logging, event notifications, versioning |
+
+The CloudTrail and S3 findings apply to the baseline built here: private and encrypted was not enough
+for the NIST bar. They are recorded as gaps rather than fixed, because the baseline exists to observe and
+then be torn down.
+
+### Evidence Handling
+
+The AWS account ID and IAM user name were redacted from all three evidence files before commit. They
+are bundled and signed by the same keyless Cosign pipeline as every other gate run, and can be checked
+with `verify-evidence.sh`.
+
+**Cost discipline:** applied and torn down the same day with `baseline/teardown.sh`. CloudTrail
+management events are free; Security Hub and Config billed only for the checks and resources recorded
+while running.
