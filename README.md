@@ -1,13 +1,28 @@
-# Terraform AWS GRC-Compliant Storage Bucket
+# GRC Pipeline: Policy-as-Code Compliance for AWS
 
-This Terraform module provisions an AWS S3 storage bucket engineered to meet rigorous Governance, Risk, and Compliance (GRC) standards. It enforces specific **NIST SP 800-53** security controls and automatically generates JSON compliance evidence for auditing.
+An end-to-end pipeline that takes AWS infrastructure from "it works" to "it is audit-defensible", with
+code doing the checking instead of people. Every control is enforced by policy before deployment, every
+change is gated in CI, the evidence is signed so it cannot be quietly edited, and the whole system is
+mapped to **NIST SP 800-53 Rev 5** in OSCAL, so an assessor can follow a link from a control to its proof
+and verify it without talking to anyone.
+
+## How It Works
+
+| Stage | What it does | Section |
+|---|---|---|
+| 1. Infrastructure as code | Terraform S3 buckets: encrypted, public access blocked, tagged, versioned, access-logged | [Controls](#enforced-nist-sp-800-53-controls) |
+| 2. Policy as code | Rego policies deny any Terraform plan that breaks a control; 6/6 unit tests pass | [Policy-as-Code](#policy-as-code-controls) |
+| 3. CI gate | Every pull request generates the plan in CI and runs the policies; branch protection blocks a failing merge | [CI Gate](#ci-policy-gate), [Keyless CI](#keyless-ci-generating-the-plan-with-github-oidc) |
+| 4. Signed evidence | Each run's evidence is hashed and signed with Cosign keyless; an Object Lock vault proved write-once preservation | [Chain of Custody](#evidence-chain-of-custody) |
+| 5. Native monitoring | CloudTrail, AWS Config and Security Hub (NIST 800-53) findings, captured and signed | [Account Baseline](#account-baseline-native-aws-controls) |
+| 6. OSCAL mapping | A profile and component definition linking each control to signed evidence | [OSCAL](#oscal-control-mapping) |
 
 ## Enforced NIST SP 800-53 Controls
 
-* **SC-28 (Protection of Information at Rest):** Enforces mandatory server-side encryption configuration across storage buckets.
-* **AC-3 (Access Enforcement):** Blocks all public access via strict S3 Public Access Block configurations.
-* **CM-6 (Configuration Settings):** Enforces bucket versioning and standardized resource tagging to maintain configuration baselines.
-* **AU-3 (Content of Audit Records):** Configures dedicated access logging and audit trails.
+* **SC-28 (Protection of Information at Rest):** Server-side encryption on every bucket. *Policy-enforced in the gate.*
+* **AC-3 (Access Enforcement):** S3 Public Access Block with all four flags on every bucket. *Policy-enforced in the gate.*
+* **CM-6 (Configuration Settings):** Four required baseline tags on every taggable resource (*policy-enforced*), and versioning on the primary bucket (*implemented in Terraform, not yet policy-enforced*).
+* **AU-3 (Content of Audit Records):** S3 server access logging from the primary bucket to a dedicated log bucket. *Implemented in Terraform, not yet policy-enforced.*
 
 ## Repository Structure
 
@@ -15,19 +30,38 @@ This Terraform module provisions an AWS S3 storage bucket engineered to meet rig
 * `variables.tf`: Input variables for customization.
 * `outputs.tf`: Module outputs including encryption details.
 * `verify.sh`: Post-apply validation script for control verification.
-* `evidence/`: Contains JSON proof artifacts generated from Terraform execution plans.
+* `evidence/`: Evidence files bundled and signed by every gate run: policy test output, plan JSON, and the redacted Security Hub and CloudTrail captures.
 * `policies/`: Rego policies and unit tests that enforce SC-28, AC-3 and CM-6 against the Terraform plan.
 * `.github/workflows/grc-gate.yml`: CI policy gate that runs the policies on every pull request to `main`.
 * `verify-evidence.sh`: Verifies a signed evidence bundle's integrity, authenticity and timeliness. Prints `CHAIN INTACT` only if every check passes.
 * `vault/`: Terraform for the S3 Object Lock evidence vault (write-once storage for signed evidence).
 * `baseline/`: Terraform for the account baseline (multi-region CloudTrail with log file validation, AWS Config, Security Hub with NIST 800-53 Rev 5) and `teardown.sh`.
+* `oscal/`: OSCAL workspace (compliance-trestle): the profile and component definition mapping this pipeline to NIST SP 800-53 Rev 5.
+* `attestations/`: Published signed evidence bundles that the OSCAL evidence links point at.
 
 ## Usage
 
-1. Initialize the Terraform environment:
-   ```bash
-   terraform init
-   ```
+```bash
+# Deploy the compliant storage (Terraform >= 1.6, AWS credentials)
+terraform init
+terraform plan -out tfplan -var="environment=dev" -var="project_name=compliance-lab"
+terraform apply tfplan
+
+# Run the policy unit tests (OPA)
+opa test policies/ -v
+
+# Gate a plan locally, as CI does (Conftest)
+terraform show -json tfplan > plan.json
+conftest test plan.json -p policies --all-namespaces
+
+# Verify a signed evidence bundle (Cosign)
+cd attestations/pr-12 && bash ../../verify-evidence.sh evidence.tar.gz
+
+# Validate the OSCAL documents (compliance-trestle)
+cd oscal
+trestle validate -f profiles/grc-pipeline-profile/profile.json
+trestle validate -f component-definitions/my-pipeline/component-definition.json
+```
 
 ## Policy-as-Code Controls
 
@@ -76,10 +110,11 @@ encryption, public access or tagging by hand: the pipeline does it in seconds.
 
 **What the gate does:**
 
-1. Installs Conftest at a pinned version (`0.62.0`).
-2. Generates the Terraform plan from the branch's code, then runs the SC-28, AC-3 and CM-6 policies against it.
-3. Fails the job if any policy reports a violation (fail closed).
-4. Uploads the results (`evidence/conftest-results.json`) as a build artifact on every run, pass or fail.
+1. Assumes a read-only AWS role through GitHub OIDC (no stored keys) and generates the Terraform plan from the branch's code.
+2. Installs Conftest at a pinned version (`0.62.0`) and runs the SC-28, AC-3 and CM-6 policies against the plan.
+3. Bundles the evidence, hashes it and signs it with Cosign keyless signing.
+4. Uploads the signed bundle (`evidence.tar.gz`, `.sha256`, `.sig.bundle`) as a build artifact on every run, pass or fail.
+5. Fails the job last if any policy reported a violation (fail closed), so even a failed run's evidence is signed and kept.
 
 **What happens when a control breaks:** the matching policy fails, the `grc-gate` check goes red,
 and branch protection on `main` requires that check to pass, so the pull request cannot be merged
@@ -230,3 +265,30 @@ with `verify-evidence.sh`.
 **Cost discipline:** applied and torn down the same day with `baseline/teardown.sh`. CloudTrail
 management events are free; Security Hub and Config billed only for the checks and resources recorded
 while running.
+
+## OSCAL Control Mapping
+
+The pipeline's proof lives in engineering formats: Terraform, Rego, JSON and signed bundles. OSCAL, NIST's
+machine-readable format for controls and evidence, is the bridge to an assessor. `oscal/` is a
+[compliance-trestle](https://github.com/oscal-compass/compliance-trestle) workspace with two documents, both
+validating `VALID` against OSCAL 1.2.1:
+
+| Document | What it says |
+|---|---|
+| [Profile](oscal/profiles/grc-pipeline-profile/profile.json) | The claim: exactly four controls (`ac-3`, `au-3`, `cm-6`, `sc-28`) selected from the official NIST SP 800-53 Rev 5 catalog, and nothing else |
+| [Component definition](oscal/component-definitions/my-pipeline/component-definition.json) | How each control is met: a plain-language description, the Terraform resource types that implement it, and a `rel: evidence` link to a signed bundle |
+
+The descriptions state the limits honestly: AU-3 logging and CM-6 versioning are implemented in Terraform
+but not enforced by a policy in the gate.
+
+### Traversal
+
+An assessor can walk the chain without contacting anyone:
+
+```
+NIST 800-53 catalog -> profile (4 controls) -> component (how) -> evidence href -> signed bundle -> verify
+```
+
+Following the SC-28 evidence link to [`attestations/pr-12/`](attestations/pr-12/), downloading the bundle and
+its sidecars, and running `verify-evidence.sh` prints `CHAIN INTACT`: a machine-readable control statement,
+an evidence link, a signed bundle and a passing verification, connected end to end.
