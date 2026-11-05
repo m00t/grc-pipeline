@@ -3,15 +3,15 @@
     "uuid": "a4b9d461-2db4-4df9-a2f9-5700b8fb3198",
     "metadata": {
       "title": "GRC Pipeline: Terraform AWS bucket with policy-as-code gate and signed evidence",
-      "last-modified": "2026-11-03T06:31:24.115+00:00",
-      "version": "1.0.0",
+      "last-modified": "2026-11-05T17:04:57.000+00:00",
+      "version": "1.0.1",
       "oscal-version": "1.2.1"
     },
     "components": [
       {
         "uuid": "4ce7c649-f8e4-49be-8b90-8c8a2759f4dd",
         "type": "software",
-        "title": "grc-terraform-aws-bucket pipeline",
+        "title": "grc-pipeline",
         "description": "Terraform-defined S3 storage with Rego policies enforced by a CI gate on every pull request, keyless-signed evidence bundles, and native AWS monitoring.",
         "control-implementations": [
           {
@@ -26,13 +26,13 @@
                 "props": [
                   {
                     "name": "terraform-resource",
-                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "ns": "https://github.com/m00t/grc-pipeline/ns",
                     "value": "aws_s3_bucket_server_side_encryption_configuration"
                   }
                 ],
                 "links": [
                   {
-                    "href": "https://github.com/m00t/grc-terraform-aws-bucket/raw/main/attestations/pr-12/evidence.tar.gz",
+                    "href": "https://github.com/m00t/grc-pipeline/raw/main/attestations/pr-12/evidence.tar.gz",
                     "rel": "evidence",
                     "media-type": "application/gzip",
                     "text": "Keyless-signed evidence bundle from grc-gate (PR #12): CI-generated plan and policy results. Sidecar .sha256 and .sig.bundle in the same folder; verify with verify-evidence.sh."
@@ -46,13 +46,13 @@
                 "props": [
                   {
                     "name": "terraform-resource",
-                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "ns": "https://github.com/m00t/grc-pipeline/ns",
                     "value": "aws_s3_bucket_public_access_block"
                   }
                 ],
                 "links": [
                   {
-                    "href": "https://github.com/m00t/grc-terraform-aws-bucket/raw/main/attestations/pr-12/evidence.tar.gz",
+                    "href": "https://github.com/m00t/grc-pipeline/raw/main/attestations/pr-12/evidence.tar.gz",
                     "rel": "evidence",
                     "media-type": "application/gzip",
                     "text": "Keyless-signed evidence bundle from grc-gate (PR #12): CI-generated plan and policy results. Sidecar .sha256 and .sig.bundle in the same folder; verify with verify-evidence.sh."
@@ -66,23 +66,23 @@
                 "props": [
                   {
                     "name": "terraform-resource",
-                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "ns": "https://github.com/m00t/grc-pipeline/ns",
                     "value": "aws_s3_bucket_ownership_controls"
                   },
                   {
                     "name": "terraform-resource",
-                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "ns": "https://github.com/m00t/grc-pipeline/ns",
                     "value": "aws_s3_bucket_acl"
                   },
                   {
                     "name": "terraform-resource",
-                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "ns": "https://github.com/m00t/grc-pipeline/ns",
                     "value": "aws_s3_bucket_logging"
                   }
                 ],
                 "links": [
                   {
-                    "href": "https://github.com/m00t/grc-terraform-aws-bucket/raw/main/attestations/pr-12/evidence.tar.gz",
+                    "href": "https://github.com/m00t/grc-pipeline/raw/main/attestations/pr-12/evidence.tar.gz",
                     "rel": "evidence",
                     "media-type": "application/gzip",
                     "text": "Keyless-signed evidence bundle from grc-gate (PR #12): CI-generated plan and policy results. Sidecar .sha256 and .sig.bundle in the same folder; verify with verify-evidence.sh."
@@ -96,18 +96,18 @@
                   "props": [
                     {
                     "name": "terraform-resource",
-                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "ns": "https://github.com/m00t/grc-pipeline/ns",
                     "value": "aws_s3_bucket"
                     },
                     {
                     "name": "terraform-resource",
-                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "ns": "https://github.com/m00t/grc-pipeline/ns",
                     "value": "aws_s3_bucket_versioning"
                     }
                 ],
                 "links": [
                   {
-                    "href": "https://github.com/m00t/grc-terraform-aws-bucket/raw/main/attestations/pr-12/evidence.tar.gz",
+                    "href": "https://github.com/m00t/grc-pipeline/raw/main/attestations/pr-12/evidence.tar.gz",
                     "rel": "evidence",
                     "media-type": "application/gzip",
                     "text": "Keyless-signed evidence bundle from grc-gate (PR #12): CI-generated plan and policy results. Sidecar .sha256 and .sig.bundle in the same folder; verify with verify-evidence.sh."
