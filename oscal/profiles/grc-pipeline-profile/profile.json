@@ -2,9 +2,9 @@
   "profile": {
     "uuid": "291e32fe-fcb9-4dc9-84bd-1a1cda01acf7",
     "metadata": {
-      "title": "GRC Pipeline Profile: NIST SP 800-53 Rev 5 controls implemented by grc-terraform-aws-bucket",
-      "last-modified": "2026-11-03T04:44:28.824+00:00",
-      "version": "1.0.0",
+      "title": "GRC Pipeline Profile: NIST SP 800-53 Rev 5 controls implemented by grc-pipeline",
+      "last-modified": "2026-11-05T17:04:57.000+00:00",
+      "version": "1.0.1",
       "oscal-version": "1.2.1"
     },
     "imports": [
