@@ -17,8 +17,10 @@ SIDECAR="${SIDECAR:-evidence.tar.gz.sha256}"
 SIG_BUNDLE="${SIG_BUNDLE:-evidence.sig.bundle}"
 
 # Only signatures made by this repo's grc-gate workflow, via GitHub Actions OIDC, are accepted.
+# The repo was renamed from grc-terraform-aws-bucket to grc-pipeline. Signatures record the name at
+# signing time and never change, so bundles signed before the rename carry the old name.
 OIDC_ISSUER="https://token.actions.githubusercontent.com"
-IDENTITY_REGEXP='^https://github\.com/m00t/grc-terraform-aws-bucket/\.github/workflows/grc-gate\.yml@'
+IDENTITY_REGEXP='^https://github\.com/m00t/(grc-pipeline|grc-terraform-aws-bucket)/\.github/workflows/grc-gate\.yml@'
 
 fail() { echo "FAIL: $1"; exit 1; }
 
@@ -49,7 +51,7 @@ if ! cosign verify-blob "$BUNDLE" \
       --certificate-identity-regexp "$IDENTITY_REGEXP"; then
   fail "AUTHENTICITY - signature not valid for this bundle, issuer or workflow identity"
 fi
-echo "PASS: AUTHENTICITY + TIMELINESS - signed by grc-gate.yml in m00t/grc-terraform-aws-bucket, logged in Rekor"
+echo "PASS: AUTHENTICITY + TIMELINESS - signed by this repo's grc-gate.yml workflow, logged in Rekor"
 
 # PRESERVATION: is the vaulted copy still retrievable, unaltered, and under Object Lock?
 # Set VAULT_BUCKET and VAULT_KEY (the vaulted evidence.tar.gz) to run this check.
