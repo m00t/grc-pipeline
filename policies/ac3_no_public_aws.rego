@@ -10,15 +10,6 @@ package compliance.ac3_aws
 
 import rego.v1
 
-# TODO (your build): deny any aws_s3_bucket that does not have a matching
-# aws_s3_bucket_public_access_block with block_public_acls, block_public_policy,
-# ignore_public_acls, and restrict_public_buckets all set to true.
-#
-# Match the bucket by reference the way sc28_encryption_aws.rego does, in
-# input.configuration.root_module.resources[].expressions.bucket.references.
-# Read the four flag values from input.planned_values.root_module.resources[]
-# where .address is the public access block's address.
-
 # The four flags that primary_public_access and log_public_access must set to true.
 required_flags := ["block_public_acls", "block_public_policy", "ignore_public_acls", "restrict_public_buckets"]
 

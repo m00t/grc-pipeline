@@ -1,0 +1,123 @@
+{
+  "component-definition": {
+    "uuid": "a4b9d461-2db4-4df9-a2f9-5700b8fb3198",
+    "metadata": {
+      "title": "GRC Pipeline: Terraform AWS bucket with policy-as-code gate and signed evidence",
+      "last-modified": "2026-11-03T06:31:24.115+00:00",
+      "version": "1.0.0",
+      "oscal-version": "1.2.1"
+    },
+    "components": [
+      {
+        "uuid": "4ce7c649-f8e4-49be-8b90-8c8a2759f4dd",
+        "type": "software",
+        "title": "grc-terraform-aws-bucket pipeline",
+        "description": "Terraform-defined S3 storage with Rego policies enforced by a CI gate on every pull request, keyless-signed evidence bundles, and native AWS monitoring.",
+        "control-implementations": [
+          {
+            "uuid": "9ab0ddb8-4300-42f9-b2ca-4611b98e6017",
+            "source": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json",
+            "description": "NIST SP 800-53 Rev 5 controls implemented and evidenced by this pipeline.",
+            "implemented-requirements": [
+              {
+                "uuid": "96f9e8c4-6d23-4663-838d-308eba0bd52e",
+                "control-id": "sc-28",
+                "description": "Every S3 bucket has server-side encryption at rest (AES256) through an aws_s3_bucket_server_side_encryption_configuration that references it. The SC-28 Rego policy (policies/sc28_encryption_aws.rego) denies any plan with an unencrypted bucket, and the grc-gate workflow blocks the merge.",
+                "props": [
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "value": "aws_s3_bucket_server_side_encryption_configuration"
+                  }
+                ],
+                "links": [
+                  {
+                    "href": "https://github.com/m00t/grc-terraform-aws-bucket/raw/main/attestations/pr-12/evidence.tar.gz",
+                    "rel": "evidence",
+                    "media-type": "application/gzip",
+                    "text": "Keyless-signed evidence bundle from grc-gate (PR #12): CI-generated plan and policy results. Sidecar .sha256 and .sig.bundle in the same folder; verify with verify-evidence.sh."
+                  }
+                ]
+              },
+              {
+                "uuid": "af108148-27a8-4689-a012-4d43e124bd2b",
+                "control-id": "ac-3",
+                "description": "Every S3 bucket has an aws_s3_bucket_public_access_block that references it, with block_public_acls, block_public_policy, ignore_public_acls and restrict_public_buckets all set to true, so neither bucket can be made public through ACLs or bucket policies. The AC-3 Rego policy (policies/ac3_no_public_aws.rego) denies any plan where a bucket has no public access block or any of the four flags is not true, and the grc-gate workflow blocks the merge.",
+                "props": [
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "value": "aws_s3_bucket_public_access_block"
+                  }
+                ],
+                "links": [
+                  {
+                    "href": "https://github.com/m00t/grc-terraform-aws-bucket/raw/main/attestations/pr-12/evidence.tar.gz",
+                    "rel": "evidence",
+                    "media-type": "application/gzip",
+                    "text": "Keyless-signed evidence bundle from grc-gate (PR #12): CI-generated plan and policy results. Sidecar .sha256 and .sig.bundle in the same folder; verify with verify-evidence.sh."
+                  }
+                ]
+              },
+            {
+            "uuid": "dc49ddc7-3e4b-4cd0-ad95-72c043e0a6eb",
+                "control-id": "au-3",
+                "description": "The primary bucket's S3 server access logs are delivered to the separate log bucket under log/ (aws_s3_bucket_logging), recording the requester, time, action and response status for each request. Implemented in Terraform but not enforced by a Rego policy in the grc-gate; the CI-generated plan in the evidence bundle shows the configuration.",
+                "props": [
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "value": "aws_s3_bucket_ownership_controls"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "value": "aws_s3_bucket_acl"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "value": "aws_s3_bucket_logging"
+                  }
+                ],
+                "links": [
+                  {
+                    "href": "https://github.com/m00t/grc-terraform-aws-bucket/raw/main/attestations/pr-12/evidence.tar.gz",
+                    "rel": "evidence",
+                    "media-type": "application/gzip",
+                    "text": "Keyless-signed evidence bundle from grc-gate (PR #12): CI-generated plan and policy results. Sidecar .sha256 and .sig.bundle in the same folder; verify with verify-evidence.sh."
+                  }
+                ]
+              },
+            {
+              "uuid": "4769e342-a0b0-485c-9fa2-61139ce32ff7",
+                  "control-id": "cm-6",
+                  "description": "Every taggable resource carries the four baseline tags (Project, Environment, ManagedBy, ComplianceScope) through the AWS provider's default_tags, and the primary bucket has versioning enabled (aws_s3_bucket_versioning). The CM-6 Rego policy (policies/cm6_required_tags_aws.rego) denies any plan where a taggable resource is missing a required tag, and the grc-gate workflow blocks the merge. Versioning is implemented in Terraform but not enforced by a policy.",
+                  "props": [
+                    {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "value": "aws_s3_bucket"
+                    },
+                    {
+                    "name": "terraform-resource",
+                    "ns": "https://github.com/m00t/grc-terraform-aws-bucket/ns",
+                    "value": "aws_s3_bucket_versioning"
+                    }
+                ],
+                "links": [
+                  {
+                    "href": "https://github.com/m00t/grc-terraform-aws-bucket/raw/main/attestations/pr-12/evidence.tar.gz",
+                    "rel": "evidence",
+                    "media-type": "application/gzip",
+                    "text": "Keyless-signed evidence bundle from grc-gate (PR #12): CI-generated plan and policy results. Sidecar .sha256 and .sig.bundle in the same folder; verify with verify-evidence.sh."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
