@@ -88,8 +88,8 @@ and the evidence artifact keeps a record of the failure.
 
 | Pull request | Change | Result |
 |---|---|---|
-| [#1](https://github.com/m00t/grc-terraform-aws-bucket/pull/1) | Compliant plan | ✅ `grc-gate` passed, merged |
-| [#2](https://github.com/m00t/grc-terraform-aws-bucket/pull/2) | Plan with the primary bucket's encryption removed | ❌ SC-28 failed, merge blocked |
+| [#1](https://github.com/m00t/grc-pipeline/pull/1) | Compliant plan | ✅ `grc-gate` passed, merged |
+| [#2](https://github.com/m00t/grc-pipeline/pull/2) | Plan with the primary bucket's encryption removed | ❌ SC-28 failed, merge blocked |
 
 Example failure from #2:
 
@@ -120,8 +120,8 @@ repository and event, which gives auditors a clear trail of who accessed the acc
 
 | Pull request | Change | Result |
 |---|---|---|
-| [#4](https://github.com/m00t/grc-terraform-aws-bucket/pull/4) | Generate the plan in CI via OIDC | ✅ Plan generated from `main.tf`, all policies passed |
-| [#5](https://github.com/m00t/grc-terraform-aws-bucket/pull/5) | Primary bucket encryption removed from `main.tf` | ❌ SC-28 failed, merge blocked |
+| [#4](https://github.com/m00t/grc-pipeline/pull/4) | Generate the plan in CI via OIDC | ✅ Plan generated from `main.tf`, all policies passed |
+| [#5](https://github.com/m00t/grc-pipeline/pull/5) | Primary bucket encryption removed from `main.tf` | ❌ SC-28 failed, merge blocked |
 
 **Lesson learned:** the first OIDC attempt was denied (`Not authorized to perform
 sts:AssumeRoleWithWebIdentity`). The CloudTrail record of the failed login showed that GitHub's
@@ -141,7 +141,7 @@ decision runs as the last step, so a failed run is signed and preserved too.
 | Custody property | Question | Artifact that proves it |
 |---|---|---|
 | **Integrity** | Has it changed? | `evidence.tar.gz.sha256`: SHA-256 of the bundle, recomputed by `verify-evidence.sh` |
-| **Authenticity** | Who produced it? | `evidence.sig.bundle`: signature plus Sigstore certificate naming `m00t/grc-terraform-aws-bucket/.github/workflows/grc-gate.yml` as the signer |
+| **Authenticity** | Who produced it? | `evidence.sig.bundle`: signature plus Sigstore certificate naming this repository's `.github/workflows/grc-gate.yml` as the signer (`m00t/grc-pipeline`; bundles signed before the rename name `m00t/grc-terraform-aws-bucket`) |
 | **Timeliness** | When was it produced? | `evidence.sig.bundle`: Rekor transparency-log entry with a signed timestamp |
 | **Preservation** | Can it still be retrieved unaltered? | S3 Object Lock vault (`vault/main.tf`): each run's signed bundle is written once in GOVERNANCE mode; `verify-evidence.sh` confirms retention is in the future and the vaulted copy matches byte for byte |
 
@@ -151,7 +151,7 @@ rejected.
 
 ### Tamper Test
 
-Signed evidence from [#7](https://github.com/m00t/grc-terraform-aws-bucket/pull/7), verified locally:
+Signed evidence from [#7](https://github.com/m00t/grc-pipeline/pull/7), verified locally:
 
 | Test | Result |
 |---|---|
